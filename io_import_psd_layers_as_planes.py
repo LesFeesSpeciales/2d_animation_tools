@@ -548,32 +548,39 @@ class ImportPsdAsPlanes(bpy.types.Operator, ImportHelper):
         col.prop(self, 'layer_index_name')
 
     def execute(self, context):
-        if context.active_object and context.active_object.mode == 'EDIT':
+        if context.view_layer.objects.active and context.view_layer.objects.active.mode == 'EDIT':
             bpy.ops.object.mode_set(mode='OBJECT')
 
         start_time = time.time()
         print()
 
-        d = self.properties.directory
-        files = self.properties.files
+        if self.files:
+            files = [f.name for f in self.files]
+            d = self.directory
+        elif self.filepath:
+            d, filename = os.path.split(self.filepath)
+            files = [filename]
+        else:
+            return {'CANCELLED'}
+
         random.seed()
         import_id = generate_random_id()
 
         for i, f in enumerate(files):
-            collection_name = os.path.splitext(f.name)[0]
+            collection_name = os.path.splitext(f)[0]
             collection = bpy.data.collections.new(collection_name)
             context.scene.collection.children.link(collection)
 
-            psd_file = os.path.join(d, f.name)
+            psd_file = os.path.join(d, f)
             try:
                 psd_layers, bboxes, image_size, png_dir = parse_psd(self, psd_file)
             except TypeError:   # None is returned, so something went wrong.
-                msg = "Something went wrong. '{f}' is not imported!".format(f=f.name)
+                msg = "Something went wrong. '{f}' is not imported!".format(f=f)
                 self.report({'ERROR'}, msg)
                 print("*** {}".format(msg))
                 continue
             create_objects(self, psd_layers, bboxes, image_size,
-                           png_dir, f.name, import_id, collection)
+                           png_dir, f, import_id, collection)
             print(''.join(('  Done', 114 * ' ')))
 
         if len(files) > 1:
