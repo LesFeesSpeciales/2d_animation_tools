@@ -240,17 +240,17 @@ def create_objects(self, psd_layers, bboxes, image_size, img_dir, psd_name, impo
         mat.use_nodes = True
         node_tree = mat.node_tree
         nodes = node_tree.nodes
-        # Remove default Principled
-        nodes.remove(nodes['Principled BSDF'])
+        principled = nodes['Principled BSDF']
+        principled.inputs['Base Color'].default_value = (0.0, 0.0, 0.0, 1.0)
+        principled.inputs['Specular'].default_value = 0.0
+
         # Create nodes
         img_tex = nodes.new('ShaderNodeTexImage')
         light_path = nodes.new('ShaderNodeLightPath')
         math_max1 = nodes.new('ShaderNodeMath')
         math_max2 = nodes.new('ShaderNodeMath')
-        emission = nodes.new('ShaderNodeEmission')
-        transparent = nodes.new('ShaderNodeBsdfTransparent')
-        mix = nodes.new('ShaderNodeMixShader')
         mat_output = nodes['Material Output']
+
         # Set options
         mat.blend_method = 'BLEND'
         img_tex.image = img
@@ -259,46 +259,40 @@ def create_objects(self, psd_layers, bboxes, image_size, img_dir, psd_name, impo
         # TODO premult
         math_max1.operation = 'MAXIMUM'
         math_max2.operation = 'MAXIMUM'
+
         # Connect nodes
         node_tree.links.new(math_max1.inputs[0], light_path.outputs[0])
         node_tree.links.new(math_max1.inputs[1], light_path.outputs[3])
         node_tree.links.new(math_max2.inputs[0], math_max1.outputs[0])
         node_tree.links.new(math_max2.inputs[1], light_path.outputs[6])
-        node_tree.links.new(emission.inputs[0], img_tex.outputs[0])
-        node_tree.links.new(emission.inputs[1], math_max2.outputs[0])
-        node_tree.links.new(mix.inputs[0], img_tex.outputs[1])
-        node_tree.links.new(mix.inputs[1], transparent.outputs[0])
-        node_tree.links.new(mix.inputs[2], emission.outputs[0])
-        node_tree.links.new(mat_output.inputs[0], mix.outputs[0])
+
+        node_tree.links.new(principled.inputs['Alpha'], img_tex.outputs['Alpha'])
+        node_tree.links.new(principled.inputs['Emission'], img_tex.outputs['Color'])
+        node_tree.links.new(principled.inputs['Emission Strength'], math_max2.outputs['Value'])
+
         # Hide unused sockets of Light Path node
         for output in light_path.outputs:
             if not output.links:
                 output.hide = True
+
         # Collapse nodes
         img_tex.width_hidden = 100
         light_path.width_hidden = 100
         math_max1.width_hidden = 100
         math_max2.width_hidden = 100
-        emission.width_hidden = 100
-        transparent.width_hidden = 100
-        mix.width_hidden = 100
+        principled.width_hidden = 100
         mat_output.width_hidden = 100
         img_tex.hide = True
         light_path.hide = True
         math_max1.hide = True
         math_max2.hide = True
-        emission.hide = True
-        transparent.hide = True
-        mix.hide = True
         mat_output.hide = True
+
         # Position nodes nicely
         img_tex.location = (-420, 200)
         light_path.location = (-840, -40)
         math_max1.location = (-630, 0)
         math_max2.location = (-420, -40)
-        emission.location = (-210, -40)
-        transparent.location = (-210, 40)
-        mix.location = (0, 0)
         mat_output.location = (210, 0)
 
         return mat
