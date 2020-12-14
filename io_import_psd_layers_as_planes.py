@@ -94,6 +94,9 @@ def parse_psd(self, psd_file):
                 print("Could not process layer " + layer.name)
                 bboxes.append(None)
                 continue
+            if layer_image is None:
+                bboxes.append(None)
+                continue
             ## AUTOCROP
             if self.crop_layers:
                 bbox = layer_image.getbbox()
